@@ -140,7 +140,9 @@ export const AuthProvider = ({ children }) => {
         // Si c'est une erreur d'authentification Netatmo, lancer le flux OAuth
         if (errorMessage.includes('Netatmo authentication required') && !netatmoAuth.isAuthenticated) {
           netatmoAuth.startOAuthFlow();
-          throw new Error('Redirection vers Netatmo pour authentification...');
+          // Ne pas throw d'erreur - la redirection vers Netatmo va se faire
+          // On retourne une promesse qui ne se résout jamais car la page va changer
+          return new Promise(() => {});
         }
 
         // Sinon, c'est le code secret qui est invalide

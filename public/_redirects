@@ -1,0 +1,5 @@
+# API functions
+/api/*  /.netlify/functions/:splat  200
+
+# SPA catch-all (for production only)
+/*  /index.html  200
