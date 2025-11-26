@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNetatmoAuth } from '../hooks/useNetatmoAuth';
 
 const AuthContext = createContext();
 
@@ -16,6 +17,9 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [secretCode, setSecretCode] = useState(null);
+
+  // Intégration de l'authentification Netatmo
+  const netatmoAuth = useNetatmoAuth();
 
   // Vérifier si un code est stocké au chargement
   useEffect(() => {
@@ -95,19 +99,35 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   };
 
-  // Fonction pour faire des appels API sécurisés
+  // Fonction pour faire des appels API sécurisés avec support Netatmo OAuth
   const secureApiCall = async (endpoint, options = {}) => {
     if (!secretCode) {
       throw new Error('Non authentifié');
     }
 
     const apiUrl = import.meta.env.VITE_API_URL || '/.netlify/functions';
+
+    // Préparer les headers
+    const headers = {
+      ...options.headers,
+      'x-app-secret': secretCode
+    };
+
+    // Ajouter le token Netatmo si disponible
+    if (endpoint === '/get-netatmo' && netatmoAuth.isAuthenticated) {
+      try {
+        const token = await netatmoAuth.getValidToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.error('Failed to get Netatmo token:', error);
+      }
+    }
+
     const config = {
       ...options,
-      headers: {
-        ...options.headers,
-        'x-app-secret': secretCode
-      }
+      headers
     };
 
     try {
@@ -115,7 +135,15 @@ export const AuthProvider = ({ children }) => {
       return response.data;
     } catch (error) {
       if (error.response?.status === 401) {
-        // Code invalide, déconnecter l'utilisateur
+        const errorMessage = error.response?.data?.error || '';
+
+        // Si c'est une erreur d'authentification Netatmo, lancer le flux OAuth
+        if (errorMessage.includes('Netatmo authentication required') && !netatmoAuth.isAuthenticated) {
+          netatmoAuth.startOAuthFlow();
+          throw new Error('Redirection vers Netatmo pour authentification...');
+        }
+
+        // Sinon, c'est le code secret qui est invalide
         logout();
         throw new Error('Session expirée');
       }
@@ -129,7 +157,8 @@ export const AuthProvider = ({ children }) => {
     error,
     login,
     logout,
-    secureApiCall
+    secureApiCall,
+    netatmoAuth // Exposer les fonctions Netatmo pour usage avancé si besoin
   };
 
   return (

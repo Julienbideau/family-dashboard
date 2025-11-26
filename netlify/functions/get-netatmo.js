@@ -169,7 +169,7 @@ export const handler = async (event, context) => {
   // Configuration CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, x-app-secret',
+    'Access-Control-Allow-Headers': 'Content-Type, x-app-secret, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Content-Type': 'application/json'
   };
@@ -195,65 +195,41 @@ export const handler = async (event, context) => {
       };
     }
 
-    // Vérification des variables d'environnement
-    if (!NETATMO_CLIENT_ID || !NETATMO_CLIENT_SECRET) {
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: 'Missing Netatmo client configuration' })
-      };
-    }
-
     let accessToken;
 
-    // Essayer d'abord avec le refresh token
-    if (NETATMO_REFRESH_TOKEN) {
-      console.log('Using refresh token authentication');
+    // NOUVEAU: Vérifier si un token est fourni dans le header Authorization
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      accessToken = authHeader.substring(7);
+      console.log('Using access token from Authorization header');
+    }
+    // ANCIEN FLUX: Fallback sur les variables d'environnement
+    else if (NETATMO_REFRESH_TOKEN) {
+      console.log('Using refresh token from environment');
       try {
         accessToken = await getAccessToken();
       } catch (error) {
         console.error('Refresh token failed:', error);
         return {
-          statusCode: 500,
+          statusCode: 401,
           headers,
           body: JSON.stringify({
-            error: 'Authentication failed',
-            message: 'Please follow the instructions in NETATMO_AUTH.md to get a refresh token',
+            error: 'Netatmo authentication required',
+            message: 'Please authenticate with Netatmo',
             details: error.message
           })
         };
       }
     } else {
-      // Fallback sur l'authentification par mot de passe (déprécié mais on essaie)
-      console.log('Attempting password authentication (deprecated)');
-      const NETATMO_USERNAME = process.env.NETATMO_USERNAME;
-      const NETATMO_PASSWORD = process.env.NETATMO_PASSWORD;
-
-      if (!NETATMO_USERNAME || !NETATMO_PASSWORD) {
-        return {
-          statusCode: 500,
-          headers,
-          body: JSON.stringify({
-            error: 'Missing authentication',
-            message: 'Please set NETATMO_REFRESH_TOKEN in your .env file. See NETATMO_AUTH.md for instructions.'
-          })
-        };
-      }
-
-      try {
-        accessToken = await getAccessTokenByPassword();
-      } catch (error) {
-        console.error('Password authentication failed:', error);
-        return {
-          statusCode: 500,
-          headers,
-          body: JSON.stringify({
-            error: 'Authentication failed',
-            message: 'Password authentication is deprecated by Netatmo. Please use refresh token. See NETATMO_AUTH.md',
-            details: error.message
-          })
-        };
-      }
+      // Pas de token fourni et pas de config dans l'environnement
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({
+          error: 'Netatmo authentication required',
+          message: 'Please authenticate with Netatmo'
+        })
+      };
     }
 
     // Obtenir les données de la station

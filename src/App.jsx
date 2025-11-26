@@ -2,9 +2,15 @@ import React from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
+import NetatmoCallback from './components/NetatmoCallback';
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+
+  // Gérer la route du callback Netatmo
+  if (window.location.pathname === '/netatmo-callback') {
+    return <NetatmoCallback />;
+  }
 
   if (isLoading) {
     return (

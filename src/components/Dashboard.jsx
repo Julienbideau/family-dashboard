@@ -32,11 +32,38 @@ const Dashboard = () => {
     { id: 3, title: "Vacances d'été", date: "Dans 1 mois" }
   ]);
 
-  const [trashSchedule] = useState({
-    next: "Jeudi",
-    type: "Recyclage",
-    days: 2
-  });
+  // Calculer la prochaine collecte de déchets
+  const getNextTrashDay = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Dimanche, 1 = Lundi, etc.
+
+    const collections = [
+      { day: 2, name: "Mardi", type: "Poubelle jaune", className: "jaune" },      // Mardi = 2
+      { day: 3, name: "Mercredi", type: "Déchets ménagers", className: "menagers" }  // Mercredi = 3
+    ];
+
+    // Trouver la prochaine collecte
+    for (const collection of collections) {
+      if (dayOfWeek < collection.day) {
+        return {
+          next: collection.name,
+          type: collection.type,
+          className: collection.className,
+          days: collection.day - dayOfWeek
+        };
+      }
+    }
+
+    // Si on est passé mercredi, la prochaine c'est mardi prochain
+    return {
+      next: "Mardi",
+      type: "Poubelle jaune",
+      className: "jaune",
+      days: 7 - dayOfWeek + 2
+    };
+  };
+
+  const [trashSchedule] = useState(getNextTrashDay());
 
   // Gestion de la connexion Internet
   useEffect(() => {
@@ -187,7 +214,7 @@ const Dashboard = () => {
               <p className="collection-type">{trashSchedule.type}</p>
               <p className="days-remaining">Dans {trashSchedule.days} jours</p>
             </div>
-            <div className={`trash-icon ${trashSchedule.type.toLowerCase()}`}>
+            <div className={`trash-icon ${trashSchedule.className}`}>
               <Trash2 size={40} />
             </div>
           </div>
@@ -217,7 +244,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .dashboard {
           min-height: 100vh;
           background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
@@ -461,14 +488,14 @@ const Dashboard = () => {
           border-radius: 50%;
         }
 
-        .trash-icon.recyclage {
-          background: #c6f6d5;
-          color: #22543d;
+        .trash-icon.jaune {
+          background: #fef08a;
+          color: #854d0e;
         }
 
-        .trash-icon.ordures {
-          background: #fed7d7;
-          color: #742a2a;
+        .trash-icon.menagers {
+          background: #e2e8f0;
+          color: #1a202c;
         }
 
         /* Widget News */

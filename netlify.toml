@@ -6,12 +6,20 @@
 [dev]
   command = "npm run dev"
   port = 8888
+  targetPort = 5174
 
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
+# Redirect Netatmo callback (SPA routing)
+[[redirects]]
+  from = "/netatmo-callback"
+  to = "/index.html"
+  status = 200
+
+# Catch-all redirect for SPA
 [[redirects]]
   from = "/*"
   to = "/index.html"
