@@ -17,10 +17,11 @@ import {
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { logout, secureApiCall } = useAuth();
+  const { logout, secureApiCall, netatmoAuth } = useAuth();
   const [weatherData, setWeatherData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [needsNetatmoAuth, setNeedsNetatmoAuth] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
@@ -83,6 +84,7 @@ const Dashboard = () => {
   const fetchWeatherData = async () => {
     setIsLoading(true);
     setError(null);
+    setNeedsNetatmoAuth(false);
 
     try {
       const data = await secureApiCall('/get-netatmo');
@@ -90,9 +92,23 @@ const Dashboard = () => {
       setLastUpdate(new Date());
     } catch (err) {
       console.error('Erreur lors du chargement des données:', err);
-      setError('Impossible de charger les données météo');
+
+      // Vérifier si c'est une erreur d'authentification Netatmo
+      if (err.message && err.message.includes('Netatmo')) {
+        setNeedsNetatmoAuth(true);
+        setError('Authentification Netatmo requise');
+      } else {
+        setError('Impossible de charger les données météo');
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Fonction pour lancer l'authentification Netatmo
+  const handleNetatmoAuth = () => {
+    if (netatmoAuth && netatmoAuth.startOAuthFlow) {
+      netatmoAuth.startOAuthFlow();
     }
   };
 
@@ -176,9 +192,15 @@ const Dashboard = () => {
           ) : error ? (
             <div className="error-state">
               <p>{error}</p>
-              <button onClick={fetchWeatherData} className="retry-button">
-                Réessayer
-              </button>
+              {needsNetatmoAuth ? (
+                <button onClick={handleNetatmoAuth} className="auth-button">
+                  Se connecter à Netatmo
+                </button>
+              ) : (
+                <button onClick={fetchWeatherData} className="retry-button">
+                  Réessayer
+                </button>
+              )}
             </div>
           ) : weatherData ? (
             <AirQualityCard data={weatherData} />
@@ -415,7 +437,8 @@ const Dashboard = () => {
           color: #718096;
         }
 
-        .retry-button {
+        .retry-button,
+        .auth-button {
           margin-top: 15px;
           padding: 8px 20px;
           background: #4299e1;
@@ -424,10 +447,21 @@ const Dashboard = () => {
           border-radius: 6px;
           cursor: pointer;
           transition: background 0.3s ease;
+          font-size: 14px;
+          font-weight: 500;
         }
 
-        .retry-button:hover {
+        .retry-button:hover,
+        .auth-button:hover {
           background: #3182ce;
+        }
+
+        .auth-button {
+          background: #48bb78;
+        }
+
+        .auth-button:hover {
+          background: #38a169;
         }
 
         /* Widget Date */
