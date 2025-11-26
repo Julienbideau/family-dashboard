@@ -56,6 +56,14 @@ export const AuthProvider = ({ children }) => {
       return response.status === 200;
     } catch (error) {
       if (error.response?.status === 401) {
+        const errorMessage = error.response?.data?.error || '';
+
+        // Si c'est une erreur Netatmo, le code secret est bon mais il manque l'auth Netatmo
+        if (errorMessage.includes('Netatmo authentication required')) {
+          return true; // Code secret valide, l'auth Netatmo se fera après
+        }
+
+        // Sinon c'est que le code secret est invalide
         return false;
       }
       // En cas d'autre erreur (réseau, serveur), on considère le code comme potentiellement valide
